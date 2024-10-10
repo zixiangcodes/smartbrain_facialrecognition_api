@@ -5,6 +5,9 @@ const bcrypt = require('bcrypt-nodejs')
 const cors = require('cors');
 // const knex = require('knex')
 
+// New imports for proxy
+const { createProxyMiddleware } = require('http-proxy-middleware');
+
 // Create backend app
 const app = express();
 
@@ -13,12 +16,37 @@ const PORT = process.env.PORT || 3000;
 
 // Initialize other libraries in backend app.
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+	origin: 'http://localhost:3001', // Allow requests from your frontend
+	credentials: true // Allow credentials (cookies, authorization headers, etc.)
+}));
 app.use(bodyParser.json());
+
+// Add proxy middleware
+app.use('/api', createProxyMiddleware({
+	target: 'https://api.clarifai.com',
+	changeOrigin: true,
+	pathRewrite: {
+		'^/api': '/v2'
+	},
+	onProxyRes: function (proxyRes, req, res) {
+		proxyRes.headers['Access-Control-Allow-Origin'] = 'http://localhost:3001';
+		proxyRes.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS';
+		proxyRes.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Authorization';
+	}
+}));
 
 // Mock database for testing purposes (to be later removed)
 const database = {
 	users: [
+		{
+			id: '0000',
+			name: 'Admin',
+			email: 'admin@mail.com',
+			password: 'admin',
+			entries: 0,
+			joined: new Date()
+		},
 		{
 			id: '0001',
 			name: 'John',
@@ -40,13 +68,18 @@ const database = {
 
 // >> STARTUP
 // Initial startup response for backend server is running and on which port
-app.listen(PORT, () => {
-	console.log(`The backend app is running on port ${PORT}`);
-});;
+// app.listen(PORT, () => {
+// 	console.log(`Console: The backend app is running on port ${PORT}`);
+// });;
+
+app.listen(PORT, '0.0.0.0', () => {
+	console.log(`Console: The backend app is running on port ${PORT}`);
+});
 
 // Initial call to backend server
 app.get('/', (req, res) => {
-	res.send(`Backend app/server is working and running on port ${PORT}!`);
+	// res.send(`Backend app/server is working and running on port ${PORT}!`);
+	res.json({ message: `Backend app/server is working and running on port ${PORT}!` });
 })
 
 // New route to get and check all users
@@ -110,11 +143,34 @@ We have a few routes, these will be endpoints for front-end
 // >> REGISTER
 // Call register route (GET) to check if working
 app.get('/register', (req, res) => {
-	res.send('The register route is working!')
+	// res.send('The register route is working!')
+	res.json({ message: `The register route is working!` });
 })
+
+/*
+bcrypt.hash("bacon", null, null, function (err, hash) {
+	// Store hash in your password DB.
+});
+
+// Load hash from your password DB.
+bcrypt.compare("bacon", hash, function (err, res) {
+	// res == true
+});
+bcrypt.compare("veggies", hash, function (err, res) {
+	// res = false
+});
+*/
 
 app.post('/register', (req, res) => {
 	const { email, name, password } = req.body;
+
+	/*
+		bcrypt.hash(password, null, null, function (err, hash) {
+			console.log("---\n" + hash)
+			// Store hash in your password DB.
+			// Need to encrypt password later on, perhaps after connecting with frontend + backend + DB.
+		});
+	*/
 
 	// Regular expression for email validation
 	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -165,34 +221,39 @@ app.post('/register', (req, res) => {
 // >> SIGNIN
 // Call signin route (GET) to check if working
 app.get('/signin', (req, res) => {
-	res.send('The signin route is working!')
+	// res.send('The signin route is working!')
+	res.json({ message: `The signin route is working!` });
 });
 
 // signin route (POST)
 app.post('/signin', (req, res) => {
-	const { name, email, password } = req.body;
+	const { email, password } = req.body;
 
-	// Search for a user in the database that matches the provided name, email, and password
+	if (!email || !password) {
+		return res.status(400).json('Incorrect form submission');
+	}
+
+	// Search for a user in the database that matches the provided email and password
 	const user = database.users.find(user =>
-		user.name === name &&
 		user.email === email &&
 		user.password === password
 	);
 
-	// If a matching user is found, send success response
 	if (user) {
-		res.status(200).json(`Success! Welcome, user ${user.name}!`);
+		const { password, ...safeUser } = user;
+		res.json(safeUser);
+		// If a matching user is found, send success response
 	} else {
+		res.status(400).json('Invalid credentials');
 		// If no user is found or data provided incorrectly, send error response
-		res.status(400).json('Invalid credentials. Please try again.');
 	}
-
 });
 
 // >> PROFILE
 // Call profile route (GET) to check if working
 app.get('/profile', (req, res) => {
-	res.send('The profile route is working!')
+	// res.send('The profile route is working!')
+	res.json({ message: `The profile route is working!` });
 });
 
 app.get('/profile/:id', (req, res) => {
@@ -211,7 +272,8 @@ app.get('/profile/:id', (req, res) => {
 
 // >> IMAGE
 app.get('/image', (req, res) => {
-	res.send('The image route is working!')
+	// res.send('The image route is working!')
+	res.json({ message: `The image route is working!` });
 });
 
 app.post('/image', (req, res) => {

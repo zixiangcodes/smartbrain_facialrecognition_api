@@ -1,4 +1,4 @@
-# A modified updated version of SmartBrain-api - v2
+# A modified updated version of SmartBrain-api v2
 Final project for ZTM course <https://www.udemy.com/course/the-complete-web-developer-zero-to-mastery/>
 Original Repo: https://github.com/aneagoie/smart-brain-api
 
