@@ -53,27 +53,6 @@ const getClarifaiRequestOptions = (imageUrl) => {
 	};
 };
 
-// Old Working Clarifai API Proxy
-// app.post('/api/models/face-detection/outputs', async (req, res) => {
-// 	try {
-// 		const imageUrl = req.body.inputs[0].data.image.url;
-// 		const requestOptions = getClarifaiRequestOptions(imageUrl);
-
-// 		const response = await fetch('https://api.clarifai.com/v2/models/face-detection/outputs', requestOptions);
-
-// 		if (!response.ok) {
-// 			throw new Error(`Clarifai API responded with status: ${response.status}`);
-// 		}
-
-// 		const data = await response.json();
-// 		res.json(data);
-// 		console.log(`Console: The Clarifai API was successfully called from the backend! `);
-// 	} catch (error) {
-// 		console.error('Error calling Clarifai API:', error);
-// 		res.status(500).json({ error: 'Failed to process the image', details: error.message });
-// 	}
-// });
-
 // Clarifai API endpoint
 app.post('/api/detect-face', async (req, res) => {
 	try {
@@ -94,42 +73,6 @@ app.post('/api/detect-face', async (req, res) => {
 		res.status(500).json({ error: 'Failed to process the image', details: error.message });
 	}
 });
-
-// app.use(cors({
-// 	origin: 'http://localhost:3001', // Allow requests from your frontend
-// 	credentials: true // Allow credentials (cookies, authorization headers, etc.)
-// }));
-// app.use(bodyParser.json());
-
-// Add proxy middleware (not used anymore)
-// app.use('/api', createProxyMiddleware({
-// 	target: 'https://api.clarifai.com',
-// 	changeOrigin: true,
-// 	pathRewrite: { '^/api': '/v2' },
-// 	onProxyRes: function (proxyRes, req, res) {
-// 		proxyRes.headers['Access-Control-Allow-Origin'] = FRONTEND_URL;
-// 		proxyRes.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS';
-// 		proxyRes.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Authorization';
-// 	},
-// 	onError: (err, req, res) => {
-// 		console.error('Proxy Error:', err);
-// 		res.status(500).json({ error: 'Failed to connect to Clarifai API', details: err.message });
-// 	}
-// }));
-
-// OLD CODE:
-// app.use('/api', createProxyMiddleware({
-// 	target: 'https://api.clarifai.com',
-// 	changeOrigin: true,
-// 	pathRewrite: {
-// 		'^/api': '/v2'
-// 	},
-// 	onProxyRes: function (proxyRes, req, res) {
-// 		proxyRes.headers['Access-Control-Allow-Origin'] = 'http://localhost:3001';
-// 		proxyRes.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS';
-// 		proxyRes.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Authorization';
-// 	}
-// }));
 
 // Mock database for testing purposes (to be later removed)
 const database = {
@@ -170,12 +113,6 @@ function getNextId() {
 
 	return (maxId + 1).toString().padStart(4, '0');
 }
-
-// >> STARTUP
-// Initial startup response for backend server is running and on which port
-// app.listen(PORT, () => {
-// 	console.log(`Console: The backend app is running on port ${PORT}`);
-// });;
 
 // Initial call to backend server
 app.get('/', (req, res) => {
@@ -235,19 +172,6 @@ app.delete('/users', (req, res) => {
 	}
 });
 
-// app.delete('/users/:id', (req, res) => {
-// 	const { id } = req.params;
-
-// 	const userIndex = database.users.findIndex(user => user.id === id);
-
-// 	if (userIndex !== -1) {
-// 		const deletedUser = database.users.splice(userIndex, 1)[0];
-// 		res.json({ message: 'User successfully deleted', user: deletedUser });
-// 	} else {
-// 		res.status(404).json({ error: 'User not found' });
-// 	}
-// });
-
 /*
 We have a few routes, these will be endpoints for front-end
 - register --> POST = user
@@ -262,20 +186,6 @@ app.get('/register', (req, res) => {
 	// res.send('The register route is working!')
 	res.json({ message: `The register route is working!` });
 })
-
-/*
-bcrypt.hash("bacon", null, null, function (err, hash) {
-	// Store hash in your password DB.
-});
-
-// Load hash from your password DB.
-bcrypt.compare("bacon", hash, function (err, res) {
-	// res == true
-});
-bcrypt.compare("veggies", hash, function (err, res) {
-	// res = false
-});
-*/
 
 app.post('/register', (req, res) => {
 	const { email, name, password } = req.body;
@@ -417,37 +327,4 @@ app.use((err, req, res, next) => {
 app.listen(PORT, '0.0.0.0', () => {
 	console.log(`Console: The backend app is running on port ${PORT}`);
 });
-
-// app.post('/signin', (req, res) => {
-// 	// res.json('signin')
-// 	if (req.body.email === database.users[0].email && req.body.password === database.users[0].password) {
-// 		res.json('success');
-// 	} else {
-// 		res.status(400).json('error logging in');
-// 	}
-// })
-
-// Check if name, email and password of John (single user) matches
-// if (req.body.name === database.users.name && req.body.email === database.users.email && req.body.password === database.users.password) {
-// 	res.status(200).json(`Success! Welcome, user ${database.users.name}!`);
-// } else {
-// 	res.status(400).json('Unknown error!');
-// }
-
-// Check if all required fields are provided
-// if (!name || !email || !password) {
-// 	return res.status(400).json('Name, email, and password are required');
-// }
-
-// Check if name exists but email and password are not provided or incorrect
-// if (user.name === name && !email || !password) {
-// 	return res.status(400).json('User exists but email and password are not provided or incorrect.');
-// }
-
-// Find a user that matches the provided email
-// const user = database.users.find(user => user.email === email);
-
-// if (!user) {
-// 	return res.status(400).json('User not found');
-// }
 
