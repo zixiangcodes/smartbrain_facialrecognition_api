@@ -1,7 +1,7 @@
 // Import libraries
 const express = require('express');
 const cors = require('cors');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+// const { createProxyMiddleware } = require('http-proxy-middleware');
 const dotenv = require('dotenv').config();
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt-nodejs')
@@ -237,6 +237,7 @@ app.post('/register', (req, res) => {
 	};
 
 	database.users.push(newUser);
+	const { password: _, ...safeUser } = newUser;
 
 	res.json({
 		user: newUser,
@@ -327,4 +328,3 @@ app.use((err, req, res, next) => {
 app.listen(PORT, '0.0.0.0', () => {
 	console.log(`Console: The backend app is running on port ${PORT}`);
 });
-
