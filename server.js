@@ -393,15 +393,16 @@ app.get('/image', (req, res) => {
 });
 
 app.post('/image', (req, res) => {
+	console.log('Received image request:', req.body);
 	const { id } = req.body;
 	let found = false;
 	database.users.forEach(user => {
 		if (user.id === id) {
 			found = true;
-			user.entries++
+			user.entries++;
 			return res.json(user.entries);
 		}
-	})
+	});
 	if (!found) {
 		return res.status(400).json('User not found');
 	}
