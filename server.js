@@ -173,7 +173,7 @@ app.delete('/users', (req, res) => {
 });
 
 /*
-We have a few routes, these will be endpoints for front-end
+Routes, the endpoints for front-end
 - register --> POST = user
 - signin --> POST = success/fail
 - profile/:userId --> GET = user
@@ -304,13 +304,30 @@ app.get('/image', (req, res) => {
 });
 
 app.post('/image', (req, res) => {
-	console.log('Received image request:', req.body);
+	console.log('Received image request for user id:', req.body);
 	const { id } = req.body;
 	let found = false;
 	database.users.forEach(user => {
 		if (user.id === id) {
 			found = true;
 			user.entries++;
+			return res.json(user.entries);
+		}
+	});
+	if (!found) {
+		return res.status(400).json('User not found');
+	}
+});
+
+// >> CLEAR SINGLE USER ENTRIES
+app.post('/clear-entries', (req, res) => {
+	const { id } = req.body;
+	let found = false;
+	database.users.forEach(user => {
+		if (user.id === id) {
+			found = true;
+			user.entries = 0;
+			console.log(`Entries of user '${user.name}' has been successfully reset to 0!`);
 			return res.json(user.entries);
 		}
 	});
