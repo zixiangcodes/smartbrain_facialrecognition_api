@@ -16,3 +16,15 @@ You can grab Clarifai API key [here](https://www.clarifai.com/)
 
 Note:
 - Make sure you use postgreSQL instead of mySQL for this code base.
+
+## Environment Setup
+
+1. Copy `.env.example` to create your own `.env` file:
+
+2. Fill in the below environ variables:
+- FRONTEND_URL
+- PORT
+- CLARIFAI_PAT
+- CLARIFAI_USER_ID
+- CLARIFAI_APP_ID
+- DATABASE_URL
