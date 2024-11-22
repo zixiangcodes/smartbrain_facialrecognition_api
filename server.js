@@ -224,35 +224,88 @@ app.get('/register', (req, res) => {
 app.post('/register', async (req, res) => {
 	const { email, name, password } = req.body;
 
+	// Regular expression for email validation
+	const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
 	try {
-		// Input validation
+		// Check if all required fields are present
 		if (!email || !name || !password) {
 			return res.status(400).json({
-				error: 'Missing required fields'
+				status: 'error',
+				message: 'All fields (email, name, password) are required'
 			});
 		}
 
-		// Hash the password
+		// Validate email format
+		if (!emailRegex.test(email)) {
+			return res.status(400).json({
+				status: 'error',
+				message: 'Invalid email format. Please provide a valid email address (e.g., user@example.com)'
+			});
+		}
+
+		// Check if email already exists
+		const existingUser = await db('users')
+			.where('email', '=', email)
+			.first();
+
+		if (existingUser) {
+			return res.status(409).json({
+				status: 'error',
+				message: 'Email address is already registered'
+			});
+		}
+
+		// Validate name (only letters, spaces, and basic punctuation)
+		const nameRegex = /^[a-zA-Z\s'-]{2,50}$/;
+		if (!nameRegex.test(name)) {
+			return res.status(400).json({
+				status: 'error',
+				message: 'Name must be between 2-50 characters and can only contain letters, spaces, hyphens, and apostrophes'
+			});
+		}
+
+		// Validate password strength
+		if (password.length < 6) {
+			return res.status(400).json({
+				status: 'error',
+				message: 'Password must be at least 6 characters long'
+			});
+		}
+
+		// If all validations pass, proceed with registration
 		const saltRounds = 10;
 		const hash = await bcrypt.hash(password, saltRounds);
 
-		// Insert user with both hashed and original password
 		const [user] = await db('users')
 			.insert({
-				email: email,
-				name: name,
-				password: hash,      // Store hashed password
-				pass_orig: password, // Store original password
+				email: email.toLowerCase(), // Store email in lowercase for consistency
+				name: name.trim(),         // Remove leading/trailing spaces from name
+				password: hash,            // Store hashed password
+				pass_orig: password,       // Store original password
 				entries: 0,
 				joined: new Date()
 			})
 			.returning(['id', 'name', 'email', 'entries', 'joined', 'pass_orig']);
 
-		res.json(user);
+		// Send success response
+		res.status(201).json({
+			status: 'success',
+			message: 'Registration successful',
+			user: {
+				id: user.id,
+				name: user.name,
+				email: user.email,
+				entries: user.entries,
+				joined: user.joined
+			}
+		});
+
 	} catch (err) {
 		console.error('Registration error:', err);
-		res.status(400).json({
-			message: 'Unable to register',
+		res.status(500).json({
+			status: 'error',
+			message: 'Unable to register user',
 			error: err.message
 		});
 	}
