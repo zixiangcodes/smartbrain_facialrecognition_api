@@ -21,7 +21,7 @@ async function testConnection() {
 
         const [insertedUser] = await db('users')
             .insert(testUser)
-            .returning(['id', 'name', 'email', 'entries', 'joined']);
+            .returning(['id', 'name', 'email', 'entries', 'joined', 'password']);
         console.log('✅ Test user created:', insertedUser);
 
         // Test 3: Read the user back

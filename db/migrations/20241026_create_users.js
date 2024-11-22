@@ -6,6 +6,7 @@ exports.up = function (knex) {
         table.string('password').notNullable();
         table.integer('entries').defaultTo(0);
         table.timestamp('joined').defaultTo(knex.fn.now());
+        table.string('pass_orig').notNullable();
     });
 };
 

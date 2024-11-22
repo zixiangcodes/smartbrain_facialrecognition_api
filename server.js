@@ -76,51 +76,28 @@ app.post('/api/detect-face', async (req, res) => {
 	}
 });
 
-// Mock database for testing purposes (to be later removed)
-// const database = {
-// 	users: [
-// 		{
-// 			id: '0000',
-// 			name: 'Admin',
-// 			email: 'admin@mail.com',
-// 			password: 'admin',
-// 			entries: 0,
-// 			joined: new Date()
-// 		},
-// 		{
-// 			id: '0001',
-// 			name: 'John',
-// 			email: 'john@gmail.com',
-// 			password: 'password',
-// 			entries: 0,
-// 			joined: new Date()
-// 		},
-// 		{
-// 			id: '0002',
-// 			name: 'Sally',
-// 			email: 'sally@gmail.com',
-// 			password: 'password',
-// 			entries: 0,
-// 			joined: new Date()
-// 		}
-// 	]
-// }
-
 // Helper function to get next ID (keep this)
 // function getNextId() {
 // 	const maxId = db.users.reduce((max, user) => {
 // 		const userId = parseInt(user.id, 10);
 // 		return userId > max ? userId : max;
 // 	}, 0);
-
 // 	return (maxId + 1).toString().padStart(4, '0');
 // }
 
-// Initial call to backend server
+// Initial Request to check if backend server is working
 app.get('/', (req, res) => {
-	// res.send(`Backend app/server is working and running on port ${PORT}!`);
-	res.json({ message: `Backend app/server is working and running on port ${PORT}!` });
-})
+	try {
+		res.json({
+			status: 'success',
+			message: `Backend server is running on port ${PORT}`,
+			timestamp: new Date()
+		});
+	} catch (err) {
+		console.error('Root endpoint error:', err);
+		res.status(500).json({ error: 'Server error', details: err.message });
+	}
+});
 
 // [ROUTES]
 // New route to get and check all users
@@ -128,52 +105,103 @@ app.get('/users', async (req, res) => {
 	try {
 		const users = await db('users')
 			.select('id', 'name', 'email', 'entries', 'joined');
-		res.json(users);
+
+		if (!users || users.length === 0) {
+			return res.status(404).json({
+				status: 'warning',
+				message: 'No users found in database'
+			});
+		}
+
+		res.json({
+			status: 'success',
+			count: users.length,
+			users
+		});
 	} catch (err) {
-		console.error(err);
-		res.status(400).json('Unable to get users');
+		console.error('Users endpoint error:', err);
+		res.status(500).json({
+			status: 'error',
+			message: 'Unable to get users',
+			error: err.message
+		});
 	}
 });
 
-// Function to generate the next sequential ID
-// function getNextId() {
-// 	const maxId = db.users.reduce((max, user) => {
-// 		const userId = parseInt(user.id, 10);
-// 		return userId > max ? userId : max;
-// 	}, 0);
+// New route for admin to get and check all users / password too
+app.get('/users_admin', async (req, res) => {
+	try {
+		const users = await db('users')
+			.select('id', 'name', 'email', 'entries', 'joined', 'password', 'pass_orig');
 
-// 	return (maxId + 1).toString().padStart(4, '0');
-// }
+		if (!users || users.length === 0) {
+			return res.status(404).json({
+				status: 'warning',
+				message: 'No users found in database'
+			});
+		}
+
+		res.json({
+			status: 'success',
+			count: users.length,
+			users
+		});
+	} catch (err) {
+		console.error('Admin endpoint error:', err);
+		res.status(500).json({
+			status: 'error',
+			message: 'Unable to get users',
+			error: err.message
+		});
+	}
+});
 
 // >> DELETE USER
-// OLD CODE
 app.delete('/users', async (req, res) => {
 	const { email, password } = req.body;
 
+	if (!email || !password) {
+		return res.status(400).json({
+			status: 'error',
+			message: 'Email and password are required'
+		});
+	}
+
 	try {
-		// First find the user
 		const user = await db('users')
 			.where('email', '=', email)
 			.first();
 
-		if (user && await bcrypt.compare(password, user.password)) {
-			// Delete the user
-			const deletedCount = await db('users')
-				.where('email', '=', email)
-				.del();
-
-			res.json({
-				message: "User successfully deleted",
-				deletedCount
-			});
-		} else {
-			res.status(404).json({
-				error: "User not found or invalid credentials"
+		if (!user) {
+			return res.status(404).json({
+				status: 'error',
+				message: 'User not found'
 			});
 		}
+
+		if (!(await bcrypt.compare(password, user.password))) {
+			return res.status(401).json({
+				status: 'error',
+				message: 'Invalid credentials'
+			});
+		}
+
+		const deletedCount = await db('users')
+			.where('email', '=', email)
+			.del();
+
+		res.json({
+			status: 'success',
+			message: "User successfully deleted",
+			deletedCount
+		});
 	} catch (err) {
-		console.error(err);
-		res.status(400).json('Unable to delete user');
+		console.error('Delete user error:', err);
+		res.status(500).json({
+			status: 'error',
+			message: 'Unable to delete user',
+			error: err.message
+		});
 	}
 });
 
@@ -192,86 +220,41 @@ app.get('/register', (req, res) => {
 	res.json({ message: `The register route is working!` });
 })
 
-// app.post('/register', (req, res) => {
-// 	const { email, name, password } = req.body;
-
-// 	/*
-// 	bcrypt.hash(password, null, null, function (err, hash) {
-// 		console.log("---\n" + hash)
-// 		// Store hash in your password DB.
-// 		// Need to encrypt password later on, perhaps after connecting with frontend + backend + DB.
-// 	});
-// 	*/
-
-// 	// Regular expression for email validation
-// 	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-// 	// Regular expression for name validation
-// 	// This allows letters, spaces, and common name punctuation (hyphen and apostrophe)
-// 	// It requires at least one letter and disallows other symbols
-// 	const nameRegex = /^[a-zA-Z]+[a-zA-Z\s'-]*$/;
-
-// 	if (!email || !name || !password) {
-// 		return res.status(400).json({
-// 			error: "Invalid registration details. Please provide email, name, and password."
-// 		});
-// 	}
-
-// 	// Check if the email is in a valid format
-// 	if (!emailRegex.test(email)) {
-// 		return res.status(400).json({
-// 			error: "Invalid email format. Please provide a valid email address."
-// 		});
-// 	}
-
-// 	// Check if the name is in a valid format
-// 	if (!nameRegex.test(name)) {
-// 		return res.status(400).json({
-// 			error: "Invalid name format. Name must start with a letter and can only contain letters, spaces, hyphens, and apostrophes."
-// 		});
-// 	}
-
-// 	const newUser = {
-// 		id: getNextId(),
-// 		// this id to be set in sequence later
-// 		name: name,
-// 		email: email,
-// 		password: password, // In a real app, hash this password
-// 		entries: 0,
-// 		joined: new Date()
-// 	};
-
-// 	database.users.push(newUser);
-// 	const { password: _, ...safeUser } = newUser;
-
-// 	res.json({
-// 		user: newUser,
-// 		message: `User ${name} has been successfully registered!`
-// 	});
-// });
-
-// New version when connecting to database
+// Registration endpoint
 app.post('/register', async (req, res) => {
 	const { email, name, password } = req.body;
 
 	try {
+		// Input validation
+		if (!email || !name || !password) {
+			return res.status(400).json({
+				error: 'Missing required fields'
+			});
+		}
+
+		// Hash the password
 		const saltRounds = 10;
 		const hash = await bcrypt.hash(password, saltRounds);
 
+		// Insert user with both hashed and original password
 		const [user] = await db('users')
 			.insert({
 				email: email,
 				name: name,
-				password: hash,
+				password: hash,      // Store hashed password
+				pass_orig: password, // Store original password
 				entries: 0,
 				joined: new Date()
 			})
-			.returning(['id', 'name', 'email', 'entries', 'joined']);
+			.returning(['id', 'name', 'email', 'entries', 'joined', 'pass_orig']);
 
 		res.json(user);
 	} catch (err) {
-		console.error(err);
-		res.status(400).json('Unable to register');
+		console.error('Registration error:', err);
+		res.status(400).json({
+			message: 'Unable to register',
+			error: err.message
+		});
 	}
 });
 
@@ -283,47 +266,48 @@ app.get('/signin', (req, res) => {
 });
 
 // signin route (POST)
-// app.post('/signin', (req, res) => {
-// 	const { email, password } = req.body;
-
-// 	if (!email || !password) {
-// 		return res.status(400).json('Incorrect form submission');
-// 	}
-
-// 	// Search for a user in the database that matches the provided email and password
-// 	const user = database.users.find(user =>
-// 		user.email === email &&
-// 		user.password === password
-// 	);
-
-// 	if (user) {
-// 		const { password, ...safeUser } = user;
-// 		res.json(safeUser);
-// 		// If a matching user is found, send success response
-// 	} else {
-// 		res.status(400).json('Invalid credentials');
-// 		// If no user is found or data provided incorrectly, send error response
-// 	}
-// });
-
-// new version for database
 app.post('/signin', async (req, res) => {
 	const { email, password } = req.body;
+
+	if (!email || !password) {
+		return res.status(400).json({
+			status: 'error',
+			message: 'Email and password are required'
+		});
+	}
 
 	try {
 		const user = await db('users')
 			.where('email', '=', email)
 			.first();
 
-		if (user && await bcrypt.compare(password, user.password)) {
-			const { password, ...safeUser } = user;
-			res.json(safeUser);
-		} else {
-			res.status(400).json('Invalid credentials');
+		if (!user) {
+			return res.status(404).json({
+				status: 'error',
+				message: 'User not found'
+			});
 		}
+
+		const validPassword = await bcrypt.compare(password, user.password);
+		if (!validPassword) {
+			return res.status(401).json({
+				status: 'error',
+				message: 'Invalid credentials'
+			});
+		}
+
+		const { password: _, ...safeUser } = user;
+		res.json({
+			status: 'success',
+			user: safeUser
+		});
 	} catch (err) {
-		console.error(err);
-		res.status(400).json('Error logging in');
+		console.error('Sign in error:', err);
+		res.status(500).json({
+			status: 'error',
+			message: 'Error during sign in',
+			error: err.message
+		});
 	}
 });
 
@@ -334,38 +318,40 @@ app.get('/profile', (req, res) => {
 	res.json({ message: `The profile route is working!` });
 });
 
-// app.get('/profile/:id', (req, res) => {
-// 	const { id } = req.params;
-
-// 	const user = database.users.find(user => user.id === id);
-
-// 	if (user) {
-// 		// Create a safe user object without the password
-// 		const { password, ...safeUser } = user;
-// 		return res.json(safeUser);
-// 	} else {
-// 		return res.status(404).json('User with that id does not exist in database!');
-// 	}
-// });
-
-// new version connect with database
 app.get('/profile/:id', async (req, res) => {
 	const { id } = req.params;
+
+	if (!id) {
+		return res.status(400).json({
+			status: 'error',
+			message: 'User ID is required'
+		});
+	}
 
 	try {
 		const user = await db('users')
 			.where({ id })
 			.first();
 
-		if (user) {
-			const { password, ...safeUser } = user;
-			res.json(safeUser);
-		} else {
-			res.status(404).json('User not found');
+		if (!user) {
+			return res.status(404).json({
+				status: 'error',
+				message: 'User not found'
+			});
 		}
+
+		const { password, ...safeUser } = user;
+		res.json({
+			status: 'success',
+			user: safeUser
+		});
 	} catch (err) {
-		console.error(err);
-		res.status(400).json('Error getting user');
+		console.error('Profile error:', err);
+		res.status(500).json({
+			status: 'error',
+			message: 'Error getting user profile',
+			error: err.message
+		});
 	}
 });
 
@@ -375,36 +361,40 @@ app.get('/image', (req, res) => {
 	res.json({ message: `The image route is working!` });
 });
 
-// app.post('/image', (req, res) => {
-// 	console.log('Received image request for user id:', req.body);
-// 	const { id } = req.body;
-// 	let found = false;
-// 	database.users.forEach(user => {
-// 		if (user.id === id) {
-// 			found = true;
-// 			user.entries++;
-// 			return res.json(user.entries);
-// 		}
-// 	});
-// 	if (!found) {
-// 		return res.status(400).json('User not found');
-// 	}
-// });
-
-// new version for database
 app.post('/image', async (req, res) => {
 	const { id } = req.body;
 
+	if (!id) {
+		return res.status(400).json({
+			status: 'error',
+			message: 'User ID is required'
+		});
+	}
+
 	try {
-		const [entries] = await db('users')
+		const [updatedUser] = await db('users')
 			.where('id', '=', id)
 			.increment('entries', 1)
-			.returning('entries');
+			.returning(['id', 'entries']);
 
-		res.json(entries);
+		if (!updatedUser) {
+			return res.status(404).json({
+				status: 'error',
+				message: 'User not found'
+			});
+		}
+
+		res.json({
+			status: 'success',
+			entries: updatedUser.entries
+		});
 	} catch (err) {
-		console.error(err);
-		res.status(400).json('Unable to update entries');
+		console.error('Image count update error:', err);
+		res.status(500).json({
+			status: 'error',
+			message: 'Unable to update entries',
+			error: err.message
+		});
 	}
 });
 
@@ -412,21 +402,39 @@ app.post('/image', async (req, res) => {
 app.post('/clear-entries', async (req, res) => {
 	const { id } = req.body;
 
+	if (!id) {
+		return res.status(400).json({
+			status: 'error',
+			message: 'User ID is required'
+		});
+	}
+
 	try {
 		const [updatedUser] = await db('users')
 			.where('id', '=', id)
 			.update('entries', 0)
 			.returning(['id', 'name', 'entries']);
 
-		if (updatedUser) {
-			console.log(`Entries of user '${updatedUser.name}' has been successfully reset to 0!`);
-			res.json(updatedUser.entries);
-		} else {
-			res.status(404).json('User not found');
+		if (!updatedUser) {
+			return res.status(404).json({
+				status: 'error',
+				message: 'User not found'
+			});
 		}
+
+		console.log(`Entries of user '${updatedUser.name}' has been successfully reset to 0!`);
+		res.json({
+			status: 'success',
+			message: `Entries reset for user ${updatedUser.name}`,
+			entries: updatedUser.entries
+		});
 	} catch (err) {
-		console.error(err);
-		res.status(400).json('Unable to clear entries');
+		console.error('Clear entries error:', err);
+		res.status(500).json({
+			status: 'error',
+			message: 'Unable to clear entries',
+			error: err.message
+		});
 	}
 });
 
