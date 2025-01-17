@@ -1,11 +1,11 @@
 [build]
   command = "npm install"
   functions = "netlify/functions"
-  publish = "public"
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["pg-native"]
+  external_node_modules = ["pg", "pg-native"]
+  included_files = ["db/**"]
 
 [[redirects]]
   from = "/api/*"
