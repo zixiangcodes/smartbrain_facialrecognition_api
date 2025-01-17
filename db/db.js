@@ -1,64 +1,67 @@
 const knex = require('knex');
-const knexfile = require('./knexfile');
 
-const db = knex(knexfile.development);
+// Environment-specific configuration
+const environment = process.env.NODE_ENV || 'development';
 
-// Test the connection and basic operations
+// Configuration object for different environments
+const config = {
+    development: {
+        client: 'pg',
+        connection: {
+            host: process.env.DB_HOST,
+            port: process.env.DB_PORT,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+            ssl: { rejectUnauthorized: false }
+        },
+        pool: {
+            min: 2,
+            max: 10,
+            createTimeoutMillis: 3000,
+            acquireTimeoutMillis: 30000,
+            idleTimeoutMillis: 30000,
+            reapIntervalMillis: 1000,
+            createRetryIntervalMillis: 100
+        }
+    },
+    production: {
+        client: 'pg',
+        connection: process.env.DATABASE_URL,
+        pool: {
+            min: 2,
+            max: 10,
+            createTimeoutMillis: 3000,
+            acquireTimeoutMillis: 30000,
+            idleTimeoutMillis: 30000,
+            reapIntervalMillis: 1000,
+            createRetryIntervalMillis: 100
+        },
+        ssl: {
+            rejectUnauthorized: false
+        }
+    }
+};
+
+// Initialize database connection
+const db = knex(config[environment]);
+
+// Modified test connection function for production
 async function testConnection() {
     try {
-        // Test 1: Basic connection
         await db.raw('SELECT 1');
-        console.log('✅ Database connection successful!');
-
-        // Test 2: Create a test user
-        const testUser = {
-            name: 'Test User',
-            email: 'test@example.com',
-            password: 'test123',
-            entries: 0,
-            joined: new Date()
-        };
-
-        const [insertedUser] = await db('users')
-            .insert(testUser)
-            .returning(['id', 'name', 'email', 'entries', 'joined', 'password']);
-        console.log('✅ Test user created:', insertedUser);
-
-        // Test 3: Read the user back
-        const foundUser = await db('users')
-            .where('email', 'test@example.com')
-            .first();
-        console.log('✅ Test user retrieved:', foundUser);
-
-        // Test 4: Update entries
-        const [updatedUser] = await db('users')
-            .where('email', 'test@example.com')
-            .increment('entries', 1)
-            .returning(['name', 'entries']);
-        console.log('✅ Entries updated:', updatedUser);
-
-        // Test 5: Delete test user
-        const deletedCount = await db('users')
-            .where('email', 'test@example.com')
-            .del();
-        console.log('✅ Test user deleted. Count:', deletedCount);
-
-        console.log('🎉 All database tests passed successfully!');
+        console.log(`✅ Database connection successful in ${environment} mode!`);
+        return true;
     } catch (error) {
-        console.error('❌ Database test failed:', error);
-        // Log more details about the error
-        console.error('Error details:', {
+        console.error('❌ Database connection failed:', {
             message: error.message,
             code: error.code,
             stack: error.stack
         });
-    } finally {
-        // Close the connection
-        await db.destroy();
+        return false;
     }
 }
 
-// Export both the database connection and the test function
 module.exports = {
     db,
     testConnection
