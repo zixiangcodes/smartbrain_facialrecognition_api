@@ -1,3 +1,7 @@
+import fetch from 'node-fetch';
+// const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+// use above if the import doesn't work
+
 const express = require('express');
 const serverless = require('serverless-http');
 const cors = require('cors');
