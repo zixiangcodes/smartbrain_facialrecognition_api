@@ -1,14 +1,9 @@
-const fetch = require('node-fetch');
-// import fetch from 'node-fetch';
-// const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-// use above if the import doesn't work
-
 const express = require('express');
 const serverless = require('serverless-http');
 const cors = require('cors');
 const { db } = require('../../db/db');
 const bcrypt = require('bcrypt');
-const dotenv = require('dotenv').config();
+require('dotenv').config();
 
 // Create the Express app
 const app = express();
@@ -19,6 +14,12 @@ app.use(cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:3001',
     credentials: true
 }));
+
+// Import node-fetch using dynamic import for compatibility
+let fetch;
+(async () => {
+    fetch = (await import('node-fetch')).default;
+})();
 
 // Clarifai helper function
 const getClarifaiRequestOptions = (imageUrl) => {
@@ -49,8 +50,9 @@ const getClarifaiRequestOptions = (imageUrl) => {
 };
 
 // Routes
+// Note: All routes need to be prefixed with /.netlify/functions/api
 // Home
-app.get('/', (req, res) => {
+app.get('/.netlify/functions/api', (req, res) => {
     res.json({
         status: 'success',
         message: 'Backend API is running',
@@ -59,7 +61,7 @@ app.get('/', (req, res) => {
 });
 
 // Face detection route
-app.post('/api/detect-face', async (req, res) => {
+app.post('/.netlify/functions/api/detect-face', async (req, res) => {
     try {
         const { imageUrl } = req.body;
         const requestOptions = getClarifaiRequestOptions(imageUrl);
@@ -78,7 +80,7 @@ app.post('/api/detect-face', async (req, res) => {
 });
 
 // Users routes
-app.get('/users', async (req, res) => {
+app.get('/.netlify/functions/api/users', async (req, res) => {
     try {
         const users = await db('users')
             .select('id', 'name', 'email', 'entries', 'joined');
@@ -106,14 +108,13 @@ app.get('/users', async (req, res) => {
 });
 
 // Authentication Routes
-// Register endpoint with detailed validation
-app.post('/register', async (req, res) => {
+app.post('/.netlify/functions/api/register', async (req, res) => {
     const { email, name, password } = req.body;
     const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     const nameRegex = /^[a-zA-Z\s'-]{2,50}$/;
 
     try {
-        // Comprehensive input validation
+        // Input validation
         if (!email || !name || !password) {
             return res.status(400).json({
                 status: 'error',
@@ -121,15 +122,14 @@ app.post('/register', async (req, res) => {
             });
         }
 
-        // Email format validation
+        // Validation checks
         if (!emailRegex.test(email)) {
             return res.status(400).json({
                 status: 'error',
-                message: 'Invalid email format. Please provide a valid email address (e.g., user@example.com)'
+                message: 'Invalid email format'
             });
         }
 
-        // Check for existing user
         const existingUser = await db('users')
             .where('email', '=', email)
             .first();
@@ -141,15 +141,13 @@ app.post('/register', async (req, res) => {
             });
         }
 
-        // Name format validation
         if (!nameRegex.test(name)) {
             return res.status(400).json({
                 status: 'error',
-                message: 'Name must be between 2-50 characters and can only contain letters, spaces, hyphens, and apostrophes'
+                message: 'Invalid name format'
             });
         }
 
-        // Password strength validation
         if (password.length < 6) {
             return res.status(400).json({
                 status: 'error',
@@ -157,7 +155,6 @@ app.post('/register', async (req, res) => {
             });
         }
 
-        // Process registration with secure password hashing
         const saltRounds = 10;
         const hash = await bcrypt.hash(password, saltRounds);
 
@@ -166,23 +163,16 @@ app.post('/register', async (req, res) => {
                 email: email.toLowerCase(),
                 name: name.trim(),
                 password: hash,
-                pass_orig: password,
+                pass_orig: password,  // Adding back the pass_orig field
                 entries: 0,
                 joined: new Date()
             })
             .returning(['id', 'name', 'email', 'entries', 'joined']);
 
-        // Return safe user data (excluding password)
         res.status(201).json({
             status: 'success',
             message: 'Registration successful',
-            user: {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                entries: user.entries,
-                joined: user.joined
-            }
+            user
         });
     } catch (err) {
         console.error('Registration error:', err);
@@ -194,12 +184,11 @@ app.post('/register', async (req, res) => {
     }
 });
 
-// Sign-in endpoint with secure authentication
-app.post('/signin', async (req, res) => {
+// Sign-in route
+app.post('/.netlify/functions/api/signin', async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        // Validate required fields
         if (!email || !password) {
             return res.status(400).json({
                 status: 'error',
@@ -207,7 +196,6 @@ app.post('/signin', async (req, res) => {
             });
         }
 
-        // Find user and verify credentials
         const user = await db('users')
             .where('email', '=', email)
             .first();
@@ -219,7 +207,6 @@ app.post('/signin', async (req, res) => {
             });
         }
 
-        // Return user data without sensitive information
         const { password: _, ...safeUser } = user;
         res.json({
             status: 'success',
@@ -235,8 +222,8 @@ app.post('/signin', async (req, res) => {
     }
 });
 
-// Profile Management Routes
-app.get('/profile/:id', async (req, res) => {
+// Profile route
+app.get('/.netlify/functions/api/profile/:id', async (req, res) => {
     const { id } = req.params;
 
     try {
@@ -247,7 +234,6 @@ app.get('/profile/:id', async (req, res) => {
             });
         }
 
-        // Fetch user profile
         const user = await db('users')
             .where({ id })
             .first();
@@ -259,7 +245,6 @@ app.get('/profile/:id', async (req, res) => {
             });
         }
 
-        // Return safe user data
         const { password, ...safeUser } = user;
         res.json({
             status: 'success',
@@ -275,8 +260,8 @@ app.get('/profile/:id', async (req, res) => {
     }
 });
 
-// Image Entry Management Routes
-app.post('/image', async (req, res) => {
+// Image entry route
+app.post('/.netlify/functions/api/image', async (req, res) => {
     const { id } = req.body;
 
     try {
@@ -287,7 +272,6 @@ app.post('/image', async (req, res) => {
             });
         }
 
-        // Increment user's entry count
         const [updatedUser] = await db('users')
             .where('id', '=', id)
             .increment('entries', 1)
@@ -314,8 +298,8 @@ app.post('/image', async (req, res) => {
     }
 });
 
-// Entry Reset Route
-app.post('/clear-entries', async (req, res) => {
+// Clear entries route
+app.post('/.netlify/functions/api/clear-entries', async (req, res) => {
     const { id } = req.body;
 
     try {
@@ -326,7 +310,6 @@ app.post('/clear-entries', async (req, res) => {
             });
         }
 
-        // Reset user's entries to zero
         const [updatedUser] = await db('users')
             .where('id', '=', id)
             .update('entries', 0)
@@ -354,7 +337,7 @@ app.post('/clear-entries', async (req, res) => {
     }
 });
 
-// Global error handler for unexpected errors
+// Global error handler
 app.use((err, req, res, next) => {
     console.error('Global Error:', err.stack);
     res.status(500).json({
@@ -363,5 +346,5 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Convert Express app to serverless function
-exports.handler = serverless(app);
+// Export the serverless handler
+module.exports.handler = serverless(app);
