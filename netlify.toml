@@ -1,5 +1,5 @@
 [build]
-  command = "npm install"
+  command = "apt-get update && apt-get install -y postgresql postgresql-contrib && npm install"
   functions = "netlify/functions"
 
 [functions]
@@ -13,10 +13,3 @@
 
 [build.environment]
   NODE_VERSION = "18"
-  NIXPKGS_ALLOW_UNFREE = "1"
-
-[[plugins]]
-package = "@netlify/plugin-nixpkgs"
-
-  [plugins.inputs]
-  packages = ["postgresql"]
