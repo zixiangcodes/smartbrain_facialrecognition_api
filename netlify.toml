@@ -1,5 +1,5 @@
 [build]
-  command = "apt-get update && apt-get install -y postgresql postgresql-contrib && npm install"
+  command = "npm install"
   functions = "netlify/functions"
 
 [functions]
@@ -13,3 +13,9 @@
 
 [build.environment]
   NODE_VERSION = "18"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[[plugins]]
+  package = "netlify-plugin-inline-functions-env"
