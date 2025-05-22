@@ -1,5 +1,51 @@
 const knex = require('knex');
 
+// Create a function to get a new database connection
+const getDb = () => {
+    const config = {
+        client: 'pg',
+        connection: {
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        },
+        pool: {
+            min: 0,
+            max: 1,
+            idleTimeoutMillis: 1000,
+            acquireTimeoutMillis: 1000,
+            createTimeoutMillis: 1000
+        }
+    };
+    return knex(config);
+};
+
+// Create a fresh connection for each request
+const getDbConnection = () => {
+    return getDb();
+};
+
+// Test connection function
+async function testConnection() {
+    const testDb = getDb();
+    try {
+        await testDb.raw('SELECT 1');
+        console.log('Database connection successful!');
+        await testDb.destroy();
+        return true;
+    } catch (error) {
+        console.error('Database connection failed:', error);
+        await testDb.destroy();
+        return false;
+    }
+}
+
+module.exports = { db: getDbConnection, testConnection };
+
+
+/*
+// old code v3 broken but working ?
+const knex = require('knex');
+
 // Create a function to get a new database connection for serverless environments
 const getDb = () => {
     // Basic configuration that works well in serverless
@@ -40,7 +86,7 @@ async function testConnection() {
 }
 
 module.exports = { db, testConnection };
-
+*/
 
 // Old code V2:
 /*

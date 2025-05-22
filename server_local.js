@@ -24,7 +24,7 @@ const CLARIFAI_APP_ID = process.env.CLARIFAI_APP_ID;
 // Initialize other libraries in backend app.
 app.use(express.json());
 app.use(cors({
-	origin: FRONTEND_URL || 'http://localhost:3001',
+	origin: FRONTEND_URL || 'http://localhost:3001' || 'http://localhost:3000',
 	credentials: true // Allow credentials (cookies, authorization headers, etc.)
 }));
 
@@ -99,12 +99,37 @@ app.get('/', (req, res) => {
 	}
 });
 
+// Initial Request to check if connection to database server is working
+app.get('/test-db', async (req, res) => {
+	const { testConnection } = require('./db/db');
+	try {
+		const isConnected = await testConnection();
+		res.json({
+			success: isConnected,
+			message: isConnected ? 'Database connected' : 'Database connection failed'
+		});
+	} catch (error) {
+		res.status(500).json({
+			success: false,
+			error: error.message
+		});
+	}
+});
+
 // [ROUTES]
 // New route to get and check all users
 app.get('/users', async (req, res) => {
+	console.log('=== /users route called ==='); 'Temporary'
+	const { db } = require('./db/db'); // Import the getDb function
+	const dbConnection = db(); // Create a fresh connection
 	try {
-		const users = await db('users')
+		console.log('About to query database...'); 'Temporary'
+		console.log('Database connection object:', typeof db); 'Temporary'
+
+		const users = await dbConnection('users')
 			.select('id', 'name', 'email', 'entries', 'joined');
+
+		console.log('Query successful, users found:', users.length); 'Temporary'
 
 		if (!users || users.length === 0) {
 			return res.status(404).json({
@@ -119,19 +144,31 @@ app.get('/users', async (req, res) => {
 			users
 		});
 	} catch (err) {
+		'Temporary'
+		console.error('=== DETAILED ERROR INFO ===');
+		console.error('Error message:', err.message);
+		console.error('Error code:', err.code);
+		console.error('Full error:', err);
+		console.error('=== END ERROR INFO ===');
+		'Temporary'
+
 		console.error('Users endpoint error:', err);
 		res.status(500).json({
 			status: 'error',
 			message: 'Unable to get users',
 			error: err.message
 		});
+	} finally {
+		await dbConnection.destroy(); // Clean up connection
 	}
 });
 
 // New route for admin to get and check all users / password too
 app.get('/users_admin', async (req, res) => {
+	const { db } = require('./db/db'); // Import the getDb function
+	const dbConnection = db(); // Create a fresh connection
 	try {
-		const users = await db('users')
+		const users = await dbConnection('users')
 			.select('id', 'name', 'email', 'entries', 'joined', 'password', 'pass_orig');
 
 		if (!users || users.length === 0) {
@@ -153,12 +190,16 @@ app.get('/users_admin', async (req, res) => {
 			message: 'Unable to get users',
 			error: err.message
 		});
+	} finally {
+		await dbConnection.destroy(); // Clean up connection
 	}
 });
 
 // >> DELETE USER
 app.delete('/users', async (req, res) => {
 	const { email, password } = req.body;
+	const { db } = require('./db/db'); // Import the getDb function
+	const dbConnection = db(); // Create a fresh connection
 
 	if (!email || !password) {
 		return res.status(400).json({
@@ -168,7 +209,7 @@ app.delete('/users', async (req, res) => {
 	}
 
 	try {
-		const user = await db('users')
+		const user = await dbConnection('users')
 			.where('email', '=', email)
 			.first();
 
@@ -186,7 +227,7 @@ app.delete('/users', async (req, res) => {
 			});
 		}
 
-		const deletedCount = await db('users')
+		const deletedCount = await dbConnection('users')
 			.where('email', '=', email)
 			.del();
 
@@ -202,6 +243,8 @@ app.delete('/users', async (req, res) => {
 			message: 'Unable to delete user',
 			error: err.message
 		});
+	} finally {
+		await dbConnection.destroy(); // Clean up connection
 	}
 });
 
@@ -223,6 +266,8 @@ app.get('/register', (req, res) => {
 // Registration endpoint
 app.post('/register', async (req, res) => {
 	const { email, name, password } = req.body;
+	const { db } = require('./db/db'); // Import the getDb function
+	const dbConnection = db(); // Create a fresh connection
 
 	// Regular expression for email validation
 	const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -245,7 +290,7 @@ app.post('/register', async (req, res) => {
 		}
 
 		// Check if email already exists
-		const existingUser = await db('users')
+		const existingUser = await dbConnection('users')
 			.where('email', '=', email)
 			.first();
 
@@ -277,7 +322,7 @@ app.post('/register', async (req, res) => {
 		const saltRounds = 10;
 		const hash = await bcrypt.hash(password, saltRounds);
 
-		const [user] = await db('users')
+		const [user] = await dbConnection('users')
 			.insert({
 				email: email.toLowerCase(), // Store email in lowercase for consistency
 				name: name.trim(),         // Remove leading/trailing spaces from name
@@ -308,6 +353,8 @@ app.post('/register', async (req, res) => {
 			message: 'Unable to register user',
 			error: err.message
 		});
+	} finally {
+		await dbConnection.destroy(); // Clean up connection
 	}
 });
 
@@ -321,6 +368,8 @@ app.get('/signin', (req, res) => {
 // signin route (POST)
 app.post('/signin', async (req, res) => {
 	const { email, password } = req.body;
+	const { db } = require('./db/db'); // Import the getDb function
+	const dbConnection = db(); // Create a fresh connection
 
 	if (!email || !password) {
 		return res.status(400).json({
@@ -330,7 +379,7 @@ app.post('/signin', async (req, res) => {
 	}
 
 	try {
-		const user = await db('users')
+		const user = await dbConnection('users')
 			.where('email', '=', email)
 			.first();
 
@@ -361,6 +410,8 @@ app.post('/signin', async (req, res) => {
 			message: 'Error during sign in',
 			error: err.message
 		});
+	} finally {
+		await dbConnection.destroy(); // Clean up connection
 	}
 });
 
@@ -373,6 +424,8 @@ app.get('/profile', (req, res) => {
 
 app.get('/profile/:id', async (req, res) => {
 	const { id } = req.params;
+	const { db } = require('./db/db'); // Import the getDb function
+	const dbConnection = db(); // Create a fresh connection
 
 	if (!id) {
 		return res.status(400).json({
@@ -382,7 +435,7 @@ app.get('/profile/:id', async (req, res) => {
 	}
 
 	try {
-		const user = await db('users')
+		const user = await dbConnection('users')
 			.where({ id })
 			.first();
 
@@ -405,6 +458,8 @@ app.get('/profile/:id', async (req, res) => {
 			message: 'Error getting user profile',
 			error: err.message
 		});
+	} finally {
+		await dbConnection.destroy(); // Clean up connection
 	}
 });
 
@@ -416,6 +471,8 @@ app.get('/image', (req, res) => {
 
 app.post('/image', async (req, res) => {
 	const { id } = req.body;
+	const { db } = require('./db/db'); // Import the getDb function
+	const dbConnection = db(); // Create a fresh connection
 
 	if (!id) {
 		return res.status(400).json({
@@ -425,7 +482,7 @@ app.post('/image', async (req, res) => {
 	}
 
 	try {
-		const [updatedUser] = await db('users')
+		const [updatedUser] = await dbConnection('users')
 			.where('id', '=', id)
 			.increment('entries', 1)
 			.returning(['id', 'entries']);
@@ -448,12 +505,16 @@ app.post('/image', async (req, res) => {
 			message: 'Unable to update entries',
 			error: err.message
 		});
+	} finally {
+		await dbConnection.destroy(); // Clean up connection
 	}
 });
 
 // >> CLEAR SINGLE USER ENTRIES
 app.post('/clear-entries', async (req, res) => {
 	const { id } = req.body;
+	const { db } = require('./db/db'); // Import the getDb function
+	const dbConnection = db(); // Create a fresh connection
 
 	if (!id) {
 		return res.status(400).json({
@@ -463,7 +524,7 @@ app.post('/clear-entries', async (req, res) => {
 	}
 
 	try {
-		const [updatedUser] = await db('users')
+		const [updatedUser] = await dbConnection('users')
 			.where('id', '=', id)
 			.update('entries', 0)
 			.returning(['id', 'name', 'entries']);
@@ -488,6 +549,8 @@ app.post('/clear-entries', async (req, res) => {
 			message: 'Unable to clear entries',
 			error: err.message
 		});
+	} finally {
+		await dbConnection.destroy(); // Clean up connection
 	}
 });
 
