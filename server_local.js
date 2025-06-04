@@ -90,7 +90,7 @@ app.get('/', (req, res) => {
 	try {
 		res.json({
 			status: 'success',
-			message: `Backend server is running on port ${PORT}`,
+			message: `Backend server is running successfully!`,
 			timestamp: new Date()
 		});
 	} catch (err) {
